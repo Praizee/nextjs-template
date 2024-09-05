@@ -1,0 +1,72 @@
+# This workflow is run on main, staging and develop branch after code is merged
+
+name: Deploy Branch
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main", "staging", "develop" ]
+
+jobs:  
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup PNPM (cache and package manager)
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Test Application
+        run: pnpm run test:coverage     
+
+      - name: Build Application
+        run: pnpm run build
+
+      - name: Require Staging Approval
+        if: github.ref == 'refs/heads/staging'
+        uses: trstringer/manual-approval@v1
+        timeout-minutes: 20
+        with:
+          secret: ${{ secrets.GITHUB_TOKEN }}
+          approvers: Kolawole99
+          minimum-approvals: 1
+          issue-title: "Deploying Graphreach Frontend to Staging"
+          issue-body: "Please approve or deny the deployment of this new version to the staging environment"
+          exclude-workflow-initiator-as-approver: false
+          additional-approved-words: ''
+          additional-denied-words: ''
+
+      - name: Require Production Approval
+        if: github.ref == 'refs/heads/main'
+        uses: trstringer/manual-approval@v1
+        timeout-minutes: 20
+        with:
+          secret: ${{ secrets.GITHUB_TOKEN }}
+          approvers: Kolawole99
+          minimum-approvals: 1
+          issue-title: "Deploying Graphreach Frontend to Production"
+          issue-body: "Please approve or deny the deployment of this new version to the production environment"
+          exclude-workflow-initiator-as-approver: false
+          additional-approved-words: ''
+          additional-denied-words: ''
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/pages-action@1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: 'nextjs-template'
+          directory: 'build'
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          wranglerVersion: '3'

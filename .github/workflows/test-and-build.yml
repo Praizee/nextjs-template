@@ -1,0 +1,35 @@
+# This workflow is run on any branch that opens a PR to merge into main, staging or develop
+# This is basically the Continuous Integration Workflow
+
+name: Working Branch Verification
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [ "main", "staging", "develop" ]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup PNPM (cache and package manager)
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Test Application
+        run: pnpm run test:coverage     
+
+      - name: Build Application
+        run: pnpm run build
